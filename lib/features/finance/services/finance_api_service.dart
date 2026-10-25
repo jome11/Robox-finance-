@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/api_constants.dart';
+import '../../auth/auth_session.dart';
 import '../models/transaction_model.dart';
 
 class FinanceApiService {
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        if (AuthSession.token != null)
+          'Authorization': 'Bearer ${AuthSession.token}',
+      };
+
   // Local fallback cache for robust operation even if backend is offline
   static final List<TransactionModel> _localCache = [
     TransactionModel(
@@ -47,19 +55,31 @@ class FinanceApiService {
     ),
   ];
 
+  /// Called on sign-out so the next user never sees the previous user's data.
+  static void clearLocalCache() => _localCache.clear();
+
+  String get _url => '${ApiConstants.baseUrl}${ApiConstants.transactionsEndpoint}';
+
+  void _checkAuth(http.Response response) {
+    if (response.statusCode == 401) {
+      AuthSession.onUnauthorized?.call();
+    }
+  }
+
   Future<List<TransactionModel>> fetchTransactions() async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.transactionsEndpoint}'),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .get(Uri.parse(_url), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      debugPrint('[API] GET ${response.statusCode}');
+      _checkAuth(response);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final remoteTransactions = data.map((e) => TransactionModel.fromJson(e)).toList();
-        return remoteTransactions;
+        return data.map((e) => TransactionModel.fromJson(e)).toList();
       }
-    } catch (_) {
-      // Fallback to local cache if network fails
+    } catch (e) {
+      debugPrint('[API] GET failed: $e');
     }
     return _localCache;
   }
@@ -67,13 +87,15 @@ class FinanceApiService {
   Future<bool> addTransaction(TransactionModel transaction) async {
     _localCache.insert(0, transaction);
     try {
-      final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.transactionsEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(transaction.toJson()),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(Uri.parse(_url),
+              headers: _headers, body: jsonEncode(transaction.toJson()))
+          .timeout(const Duration(seconds: 10));
+      debugPrint('[API] POST ${response.statusCode} ${response.body}');
+      _checkAuth(response);
       return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[API] POST failed: $e');
       return true; // success via local cache
     }
   }
@@ -84,13 +106,15 @@ class FinanceApiService {
       _localCache[index] = transaction;
     }
     try {
-      final response = await http.put(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.transactionsEndpoint}/${transaction.id}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(transaction.toJson()),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .put(Uri.parse('$_url/${transaction.id}'),
+              headers: _headers, body: jsonEncode(transaction.toJson()))
+          .timeout(const Duration(seconds: 10));
+      debugPrint('[API] PUT ${response.statusCode} ${response.body}');
+      _checkAuth(response);
       return response.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[API] PUT failed: $e');
       return true;
     }
   }
@@ -98,11 +122,14 @@ class FinanceApiService {
   Future<bool> deleteTransaction(String id) async {
     _localCache.removeWhere((t) => t.id == id);
     try {
-      final response = await http.delete(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.transactionsEndpoint}/$id'),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .delete(Uri.parse('$_url/$id'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      debugPrint('[API] DELETE ${response.statusCode} ${response.body}');
+      _checkAuth(response);
       return response.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[API] DELETE failed: $e');
       return true;
     }
   }

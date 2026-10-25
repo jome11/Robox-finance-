@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:excel/excel.dart';
 import '../models/transaction_model.dart';
+import '../services/excel_export_service.dart';
 import '../services/finance_api_service.dart';
 
 class FinanceProvider with ChangeNotifier {
@@ -8,10 +8,12 @@ class FinanceProvider with ChangeNotifier {
 
   List<TransactionModel> _transactions = [];
   bool _isLoading = false;
+  bool _exporting = false;
   String _selectedPeriod = 'Month'; // 'Week', 'Month', 'Year'
 
   List<TransactionModel> get transactions => _transactions;
   bool get isLoading => _isLoading;
+  bool get isExporting => _exporting;
   String get selectedPeriod => _selectedPeriod;
 
   double get totalIncome {
@@ -28,14 +30,27 @@ class FinanceProvider with ChangeNotifier {
 
   double get netBalance => totalIncome - totalExpenses;
 
-  // Shipment-specific transactions grouped by shipment ID (shipment number), ordered as entered
+  // Shipment-specific transactions and metrics
   List<TransactionModel> get shipmentTransactions {
     return _transactions.where((t) => t.shipmentNumber.trim().isNotEmpty).toList();
   }
 
+  double get shipmentIncome {
+    return shipmentTransactions
+        .where((t) => t.type.toLowerCase() == 'income')
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double get shipmentExpenses {
+    return shipmentTransactions
+        .where((t) => t.type.toLowerCase() == 'expense')
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double get shipmentNetBalance => shipmentIncome - shipmentExpenses;
+
   Map<String, List<TransactionModel>> get shipmentsMap {
     final Map<String, List<TransactionModel>> map = {};
-    // Transactions are already in entry order (newest or oldest)
     for (var t in shipmentTransactions) {
       final sId = t.shipmentNumber.trim();
       if (!map.containsKey(sId)) {
@@ -101,19 +116,41 @@ class FinanceProvider with ChangeNotifier {
     return map;
   }
 
+  // Correctly group data differently for Week, Month, and Year
   Map<String, double> getGroupedChartData() {
     final Map<String, double> grouped = {};
 
     for (var t in filteredTransactions) {
       String key;
       if (_selectedPeriod == 'Week') {
+        // Week: group by individual day (MM/DD) over the last 7 days
         key = '${t.date.month}/${t.date.day}';
       } else if (_selectedPeriod == 'Month') {
-        key = '${t.date.month}/${t.date.day}';
+        // Month: group by week of the month (Week 1, Week 2, Week 3, Week 4, Week 5)
+        int weekNumber = ((t.date.day - 1) ~/ 7) + 1;
+        key = 'Week $weekNumber';
       } else {
-        key = 'M${t.date.month}';
+        // Year: group by Month name
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        key = months[t.date.month - 1];
       }
       grouped[key] = (grouped[key] ?? 0.0) + t.amount;
+    }
+
+    if (_selectedPeriod == 'Year') {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final Map<String, double> sortedMap = {};
+      for (var m in months) {
+        if (grouped.containsKey(m)) {
+          sortedMap[m] = grouped[m]!;
+        }
+      }
+      for (var k in grouped.keys) {
+        if (!sortedMap.containsKey(k)) {
+          sortedMap[k] = grouped[k]!;
+        }
+      }
+      return sortedMap;
     }
 
     final sortedKeys = grouped.keys.toList()..sort();
@@ -128,7 +165,7 @@ class FinanceProvider with ChangeNotifier {
     final now = DateTime.now();
     return _transactions.where((t) {
       if (_selectedPeriod == 'Week') {
-        return now.difference(t.date).inDays <= 7;
+        return now.difference(t.date).inDays <= 7 && t.date.isBefore(now.add(const Duration(days: 1)));
       } else if (_selectedPeriod == 'Month') {
         return t.date.year == now.year && t.date.month == now.month;
       } else if (_selectedPeriod == 'Year') {
@@ -138,45 +175,23 @@ class FinanceProvider with ChangeNotifier {
     }).toList();
   }
 
-  Future<String?> exportToExcel() async {
+  /// Builds an Excel file (with photos) and opens the share / save sheet.
+  /// Returns a message to show the user.
+  Future<String?> exportToExcel({bool includePhotos = true}) async {
+    if (_exporting) return 'An export is already running. Please wait.';
+    _exporting = true;
+    notifyListeners();
     try {
-      var excel = Excel.createExcel();
-      Sheet sheetObject = excel['Transactions'];
-      excel.setDefaultSheet('Transactions');
-
-      sheetObject.appendRow([
-        TextCellValue('ID'),
-        TextCellValue('Title'),
-        TextCellValue('Type'),
-        TextCellValue('Amount'),
-        TextCellValue('Category'),
-        TextCellValue('Subcategory'),
-        TextCellValue('Payment Method'),
-        TextCellValue('Shipment Number'),
-        TextCellValue('Date'),
-        TextCellValue('Note'),
-      ]);
-
-      for (var t in _transactions) {
-        sheetObject.appendRow([
-          TextCellValue(t.id),
-          TextCellValue(t.title),
-          TextCellValue(t.type),
-          DoubleCellValue(t.amount),
-          TextCellValue(t.category),
-          TextCellValue(t.subcategory),
-          TextCellValue(t.paymentMethod),
-          TextCellValue(t.shipmentNumber),
-          TextCellValue(t.date.toIso8601String()),
-          TextCellValue(t.note),
-        ]);
-      }
-
-      final fileBytes = excel.save();
-      if (fileBytes != null) {
-        return 'Excel export generated successfully (${_transactions.length} records)';
-      }
-    } catch (_) {}
-    return null;
+      return await ExcelExportService.export(
+        _transactions,
+        includePhotos: includePhotos,
+      );
+    } catch (e) {
+      debugPrint('[EXPORT] failed: $e');
+      return 'Export failed: $e';
+    } finally {
+      _exporting = false;
+      notifyListeners();
+    }
   }
 }
