@@ -7,14 +7,22 @@ class FinanceProvider with ChangeNotifier {
   final FinanceApiService _apiService = FinanceApiService();
 
   List<TransactionModel> _transactions = [];
+  List<TransactionModel> _deleted = [];
   bool _isLoading = false;
   bool _exporting = false;
   String _selectedPeriod = 'Month'; // 'Week', 'Month', 'Year'
 
   List<TransactionModel> get transactions => _transactions;
+  List<TransactionModel> get deletedTransactions => _deleted;
   bool get isLoading => _isLoading;
   bool get isExporting => _exporting;
   String get selectedPeriod => _selectedPeriod;
+
+  void _setAll(List<TransactionModel> all) {
+    _transactions = all.where((t) => !t.isDeleted).toList();
+    _deleted = all.where((t) => t.isDeleted).toList()
+      ..sort((a, b) => b.deletedAt.compareTo(a.deletedAt));
+  }
 
   double get totalIncome {
     return _transactions
@@ -65,7 +73,7 @@ class FinanceProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _transactions = await _apiService.fetchTransactions();
+    _setAll(await _apiService.fetchTransactions());
     _isLoading = false;
     notifyListeners();
   }
@@ -80,7 +88,7 @@ class FinanceProvider with ChangeNotifier {
     notifyListeners();
 
     await _apiService.addTransaction(transaction);
-    _transactions = await _apiService.fetchTransactions();
+    _setAll(await _apiService.fetchTransactions());
 
     _isLoading = false;
     notifyListeners();
@@ -91,7 +99,7 @@ class FinanceProvider with ChangeNotifier {
     notifyListeners();
 
     await _apiService.updateTransaction(transaction);
-    _transactions = await _apiService.fetchTransactions();
+    _setAll(await _apiService.fetchTransactions());
 
     _isLoading = false;
     notifyListeners();
@@ -102,11 +110,22 @@ class FinanceProvider with ChangeNotifier {
     notifyListeners();
 
     await _apiService.deleteTransaction(id);
-    _transactions = await _apiService.fetchTransactions();
+    _setAll(await _apiService.fetchTransactions());
 
     _isLoading = false;
     notifyListeners();
   }
+
+  Future<void> restoreTransaction(String id) async {
+    _isLoading = true;
+    notifyListeners();
+    await _apiService.restoreTransaction(id);
+    _setAll(await _apiService.fetchTransactions());
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> loadAudit() => _apiService.fetchAudit();
 
   Map<String, double> getExpensesByCategory() {
     final Map<String, double> map = {};

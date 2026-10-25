@@ -11,14 +11,14 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _username = TextEditingController();
+  final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   bool _hidePassword = true;
 
   @override
   void dispose() {
-    _username.dispose();
+    _email.dispose();
     _password.dispose();
     _confirmPassword.dispose();
     super.dispose();
@@ -35,7 +35,7 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    final success = await auth.signup(_username.text.trim(), _password.text);
+    final success = await auth.signup(_email.text.trim(), _password.text);
     if (success && mounted) {
       Navigator.pop(context); // Return to login or authenticated root
     }
@@ -81,13 +81,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 32),
                   TextField(
-                    controller: _username,
+                    controller: _email,
                     enabled: !auth.busy,
+                    keyboardType: TextInputType.emailAddress,
                     autocorrect: false,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
-                      labelText: 'Username',
-                      prefixIcon: Icon(Icons.person_outline),
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
                   ),
                   const SizedBox(height: 16),

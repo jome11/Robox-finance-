@@ -10,15 +10,22 @@ enum AuthStatus { unknown, unauthenticated, authenticated }
 
 class UserModel {
   final String id;
+  final String email;
   final String username;
   final String role;
 
-  const UserModel({required this.id, required this.username, required this.role});
+  const UserModel({
+    required this.id,
+    required this.email,
+    required this.username,
+    required this.role,
+  });
 
   bool get isAdmin => role == 'admin';
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
         id: json['id'].toString(),
+        email: (json['email'] ?? json['username'] ?? '').toString(),
         username: (json['username'] ?? json['email'] ?? '').toString(),
         role: json['role'].toString(),
       );
@@ -72,7 +79,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String username, String password) async {
+  Future<bool> login(String email, String password) async {
     _busy = true;
     _error = null;
     notifyListeners();
@@ -81,7 +88,7 @@ class AuthProvider with ChangeNotifier {
           .post(
             _uri(ApiConstants.loginEndpoint),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'username': username, 'password': password}),
+            body: jsonEncode({'username': email, 'password': password}),
           )
           .timeout(const Duration(seconds: 20));
       debugPrint('[AUTH] login ${res.statusCode}');
@@ -113,7 +120,7 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
-  Future<bool> signup(String username, String password) async {
+  Future<bool> signup(String email, String password) async {
     _busy = true;
     _error = null;
     notifyListeners();
@@ -122,7 +129,7 @@ class AuthProvider with ChangeNotifier {
           .post(
             _uri(ApiConstants.signupEndpoint),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'username': username, 'password': password}),
+            body: jsonEncode({'username': email, 'password': password}),
           )
           .timeout(const Duration(seconds: 20));
       debugPrint('[AUTH] signup ${res.statusCode}');
@@ -130,7 +137,7 @@ class AuthProvider with ChangeNotifier {
       if (res.statusCode == 200 || res.statusCode == 201) {
         _busy = false;
         notifyListeners();
-        return await login(username, password);
+        return await login(email, password);
       }
 
       String message = 'Signup failed. Please try again.';

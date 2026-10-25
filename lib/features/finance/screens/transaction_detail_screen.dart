@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -38,7 +39,7 @@ class TransactionDetailScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete transaction?'),
-        content: const Text('This cannot be undone.'),
+        content: const Text('It will be marked as deleted and can be restored later.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

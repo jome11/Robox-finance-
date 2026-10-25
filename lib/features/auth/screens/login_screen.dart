@@ -12,13 +12,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _username = TextEditingController();
+  final _email = TextEditingController();
   final _password = TextEditingController();
   bool _hidePassword = true;
 
   @override
   void dispose() {
-    _username.dispose();
+    _email.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -26,7 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     final auth = context.read<AuthProvider>();
     if (auth.busy) return;
-    await auth.login(_username.text.trim(), _password.text);
+    await auth.login(_email.text.trim(), _password.text);
   }
 
   @override
@@ -104,13 +104,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 24),
                           TextField(
-                            controller: _username,
+                            controller: _email,
                             enabled: !auth.busy,
+                            keyboardType: TextInputType.emailAddress,
                             autocorrect: false,
                             textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
-                              labelText: 'Username',
-                              prefixIcon: Icon(Icons.person_outline),
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
                             ),
                           ),
                           const SizedBox(height: 16),

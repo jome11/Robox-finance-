@@ -5,6 +5,7 @@ import '../features/finance/providers/finance_provider.dart';
 import '../features/finance/screens/add_edit_transaction_screen.dart';
 import '../features/finance/screens/add_shipment_transaction_screen.dart';
 import '../features/finance/screens/transactions_page.dart';
+import '../features/finance/screens/activity_screen.dart';
 import '../features/tasks/providers/tasks_provider.dart';
 import '../features/tasks/screens/task_form_screen.dart';
 import '../features/tasks/screens/tasks_page.dart';
@@ -68,6 +69,15 @@ class _AppShellState extends State<AppShell> {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _push(const TaskFormScreen());
+                },
+              ),
+              _QuickAction(
+                icon: Icons.history,
+                title: 'Deleted & activity',
+                subtitle: 'See what was deleted, by whom, and restore it',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _push(const ActivityScreen());
                 },
               ),
             ],

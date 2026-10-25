@@ -133,4 +133,32 @@ class FinanceApiService {
       return true;
     }
   }
+
+  Future<bool> restoreTransaction(String id) async {
+    try {
+      final response = await http
+          .post(Uri.parse('$_url/$id/restore'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      _checkAuth(response);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[API] RESTORE failed: $e');
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAudit() async {
+    try {
+      final response = await http
+          .get(Uri.parse('${ApiConstants.baseUrl}/api/audit'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      _checkAuth(response);
+      if (response.statusCode == 200) {
+        return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      debugPrint('[API] AUDIT failed: $e');
+    }
+    return [];
+  }
 }

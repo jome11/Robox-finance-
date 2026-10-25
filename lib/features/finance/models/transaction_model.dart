@@ -12,6 +12,9 @@ class TransactionModel {
   final List<String> imagePaths;
   final String type; // 'income' or 'expense'
   final String shipmentNumber; // Shipment tracking number for shipment expenses/income
+  final String deletedAt;
+  final String deletedBy;
+  bool get isDeleted => deletedAt.isNotEmpty;
 
   TransactionModel({
     required this.id,
@@ -25,6 +28,8 @@ class TransactionModel {
     required this.imagePaths,
     required this.type,
     required this.shipmentNumber,
+    this.deletedAt = '',
+    this.deletedBy = '',
   });
 
   Map<String, dynamic> toJson() {
@@ -40,6 +45,8 @@ class TransactionModel {
       'imagePaths': jsonEncode(imagePaths),
       'type': type,
       'shipmentNumber': shipmentNumber,
+      'deletedAt': deletedAt,
+      'deletedBy': deletedBy,
     };
   }
 
@@ -72,6 +79,8 @@ class TransactionModel {
       imagePaths: parsedImages,
       type: json['type']?.toString() ?? 'expense',
       shipmentNumber: json['shipmentNumber']?.toString() ?? '',
+      deletedAt: json['deletedAt']?.toString() ?? '',
+      deletedBy: json['deletedBy']?.toString() ?? '',
     );
   }
 
@@ -87,6 +96,8 @@ class TransactionModel {
     List<String>? imagePaths,
     String? type,
     String? shipmentNumber,
+    String? deletedAt,
+    String? deletedBy,
   }) {
     return TransactionModel(
       id: id ?? this.id,
@@ -100,6 +111,8 @@ class TransactionModel {
       imagePaths: imagePaths ?? this.imagePaths,
       type: type ?? this.type,
       shipmentNumber: shipmentNumber ?? this.shipmentNumber,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deletedBy: deletedBy ?? this.deletedBy,
     );
   }
 }

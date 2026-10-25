@@ -58,7 +58,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete transaction?'),
-        content: Text('"${tx.title}" will be removed permanently.'),
+        content: Text('"${tx.title}" will be marked as deleted. You can restore it later from Deleted & activity.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
